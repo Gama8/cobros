@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.enc
 .venv/
 venv/
 __pycache__/
@@ -13,6 +14,8 @@ logs/
 *.log
 *.pem
 *.key
+*-key.txt
+*_key.txt
 *.pfx
 *.p12
 .pytest_cache/

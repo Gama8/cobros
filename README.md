@@ -12,6 +12,45 @@ Los dos extremos de `TEST_START_DATE` y `TEST_END_DATE` están incluidos, tambi�
 
 ## Instalar en otro equipo Windows
 
+### Conservar la configuración actual mediante Git
+
+El repositorio incluye `.env.enc`: una copia **cifrada** de tu `.env` tomada el 18 de noviembre de 2026. La clave está fuera del repositorio y se entrega por separado como `cobros-env-20261118.key`. Guarda ese archivo y transfiérelo en privado al nuevo equipo. Cualquiera que tenga la clave y el archivo cifrado puede recuperar las credenciales; no subas la clave a Git ni la compartas públicamente.
+
+En el otro equipo, clona el repositorio y ejecuta desde su carpeta:
+
+```powershell
+git clone https://github.com/Gama8/cobros.git cobranza_bot_v5_temp
+cd cobranza_bot_v5_temp
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\instalar.ps1 -EnvKeyFile 'C:\Privado\cobros-env-20261118.key'
+```
+
+Cambia la ruta de la clave por su ubicación real. El instalador crea `.venv`, instala dependencias y restaura `.env` exactamente como estaba. Un `.env` existente se conserva. No programa tareas ni inicia contactos.
+
+**La copia actual conserva las fechas del 26 al 31 de octubre de 2026. Ya vencieron: ajusta `TEST_START_DATE` y `TEST_END_DATE` en el `.env` restaurado antes de ejecutar `programar_periodo.ps1`.** Los contactos, credenciales y demás valores se conservan tal como estaban; restaurarlos no acredita que sigan vigentes en el proveedor.
+
+Si ya instalaste el proyecto y quieres reemplazar el `.env` de ejemplo:
+
+```powershell
+& .\.venv\Scripts\python.exe -m pip install -r .\requirements-env.txt
+& .\.venv\Scripts\python.exe -B .\env_portable.py restaurar --key-file 'C:\Privado\cobros-env-20261118.key' --force
+```
+
+`--force` reemplaza el `.env` local. Sin ese argumento, se conserva un archivo existente. El cifrado usa [Fernet de cryptography](https://cryptography.io/en/latest/fernet/), que verifica la autenticidad antes de restaurar el archivo. La clave no depende del equipo de origen y no se imprime en consola.
+
+Para actualizar en el futuro el archivo cifrado después de modificar tu `.env`:
+
+```powershell
+& .\.venv\Scripts\python.exe -m pip install -r .\requirements-env.txt
+& .\.venv\Scripts\python.exe -B .\env_portable.py cifrar --key-file 'C:\Privado\cobros-env-20261118.key' --force
+git add .env.enc
+git commit -m 'Actualizar configuracion cifrada'
+git push
+```
+
+Esto reutiliza la clave indicada; si no existe, genera una nueva. Guarda siempre la clave correspondiente a la nueva copia. El `.env` en texto claro y los archivos `*.key` quedan excluidos por `.gitignore`. La copia cifrada es una instantánea: no se actualiza sola cuando cambias el `.env`.
+
+### Instalar con una configuración nueva
+
 1. Instala Git y Python. Clona este repositorio en su ubicación definitiva y abre PowerShell dentro de esa carpeta. No copies la `.venv` del equipo anterior.
 2. Ejecuta:
 
@@ -66,7 +105,7 @@ Deja el PC encendido, con corriente, Internet y tu sesión iniciada; puedes bloq
 
 Programa los envíos en **un solo equipo a la vez**. Antes de activar el nuevo, elimina o deshabilita las tareas temporales del equipo anterior. Cada instalación tiene su propia SQLite: el control de duplicados no se comparte entre computadoras. Un clon nuevo tampoco contiene los intentos ya hechos el mismo día; empieza después de la última franja de ese día o en una fecha futura.
 
-Este repositorio no incluye `.env`, credenciales, números de destino, bases de datos ni logs. Conserva el cálculo y los parámetros financieros de ejemplo del proyecto. Copiar código no traslada las tareas de Windows ni el historial; tampoco modifica la v5 de producción.
+Este repositorio no incluye `.env` en texto claro, claves de descifrado, bases de datos ni logs. Incluye la configuración actual únicamente en `.env.enc`, cifrada. Conserva el cálculo y los parámetros financieros de ejemplo del proyecto. Copiar código no traslada las tareas de Windows ni el historial; tampoco modifica la v5 de producción.
 
 ## Sender y plantilla de WhatsApp
 
