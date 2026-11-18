@@ -35,7 +35,7 @@ def error_detail(exc):
 
 def preview(slot, day=None):
     config.validate()
-    day = day or config.TEST_START_DATE
+    day = day or config.TEST_START_DATE or config.now_colombia().date()
     b = calculate_balance(day, persist=False)
     print(f'Vista previa {slot}, {day.isoformat()} Colombia: {", ".join(config.PLAN[slot])}; SMS=0')
     print(f'Capital: {format_cop(b["principal"])}; interés: {format_cop(b["accrued_interest"])}; total: {format_cop(b["total_balance"])}')
@@ -140,7 +140,7 @@ def slot_main(slot):
         except ValueError:
             print('Fecha de tarea inválida; usa AAAA-MM-DD.')
             return 2
-        if not config.TEST_START_DATE <= expected <= config.TEST_END_DATE:
+        if config.TEST_SCHEDULE_MODE == 'period' and not config.TEST_START_DATE <= expected <= config.TEST_END_DATE:
             print('La fecha de esta tarea está fuera del período configurado; vuelve a crear las tareas.')
             return 2
     if args.dry_run or config.DRY_RUN:

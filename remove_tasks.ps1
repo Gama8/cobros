@@ -3,9 +3,18 @@ param(
     [string]$StartDate = '',
     [string]$EndDate = '',
     [string]$TestDate = '',
-    [string]$ProjectRoot = $PSScriptRoot
+    [string]$ProjectRoot = ''
 )
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) { $ProjectRoot = $PSScriptRoot }
+if (-not $StartDate -and -not $EndDate -and -not $TestDate) {
+    $envText = [IO.File]::ReadAllText((Join-Path $ProjectRoot '.env'))
+    if ($envText -match '(?im)^[ \t]*TEST_SCHEDULE_MODE[ \t]*=[ \t]*continuous[ \t]*(?:#.*)?$') {
+        & (Join-Path $PSScriptRoot 'cancelar.ps1') -ProjectRoot $ProjectRoot -WhatIf:$WhatIfPreference
+        return
+    }
+}
+
 if (-not [string]::IsNullOrWhiteSpace($TestDate)) {
     if ($StartDate -or $EndDate) { throw 'Usa TestDate para un día o StartDate y EndDate para un período.' }
     $StartDate = $TestDate

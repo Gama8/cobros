@@ -18,7 +18,7 @@ from balance import calculate_balance
 
 class PeriodTests(TestCase):
     def setUp(self):
-        period = patch.multiple(config, TEST_START_DATE=date(2026, 10, 9), TEST_END_DATE=date(2026, 10, 15))
+        period = patch.multiple(config, TEST_SCHEDULE_MODE='period', TEST_ENABLED=True, TEST_START_DATE=date(2026, 10, 9), TEST_END_DATE=date(2026, 10, 15))
         period.start()
         self.addCleanup(period.stop)
 

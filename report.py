@@ -5,10 +5,14 @@ import db
 from runner import observe, setup_logging
 
 def missing_attempts(rows, now=None):
+    if not config.TEST_ENABLED:
+        return []
     now = (now or config.now_colombia()).astimezone(config.COLOMBIA)
     recorded = {(r['test_date'], r['slot'], r['channel']) for r in rows}
     missing = []
-    for day in config.test_days():
+    # Sin una fecha de inicio no se inventan faltantes historicos; se informa hoy.
+    days = (now.date(),) if config.TEST_SCHEDULE_MODE == 'continuous' else config.test_days()
+    for day in days:
         if day > now.date():
             break
         for slot, hour in config.SLOT_HOURS.items():

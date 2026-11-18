@@ -78,7 +78,8 @@ def check_gmail():
 def main():
     config.validate(live=True)
     results = {'checked_at': config.now_colombia().isoformat(),
-               'start_date': config.TEST_START_DATE.isoformat(), 'end_date': config.TEST_END_DATE.isoformat(), 'checks': {}}
+               'start_date': config.TEST_START_DATE.isoformat() if config.TEST_START_DATE else None,
+               'end_date': config.TEST_END_DATE.isoformat() if config.TEST_END_DATE else None, 'checks': {}}
     failed = False
     for name, check in (('twilio', check_twilio), ('gmail', check_gmail)):
         try:

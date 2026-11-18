@@ -1,6 +1,7 @@
-[CmdletBinding()]
-param([string]$ProjectRoot = $PSScriptRoot, [string]$BasePython = '', [string]$EnvKeyFile = '')
+﻿[CmdletBinding()]
+param([string]$ProjectRoot = '', [string]$BasePython = '', [string]$EnvKeyFile = '')
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) { $ProjectRoot = $PSScriptRoot }
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 $python = Join-Path $ProjectRoot '.venv\Scripts\python.exe'
 if ($EnvKeyFile -and -not (Test-Path -LiteralPath $EnvKeyFile -PathType Leaf)) { throw 'No se encontro el archivo de clave privada indicado en -EnvKeyFile.' }

@@ -1,10 +1,11 @@
 ﻿[CmdletBinding(SupportsShouldProcess=$true)]
 param(
-    [string]$ProjectRoot = $PSScriptRoot,
+    [string]$ProjectRoot = '',
     [string]$PythonPath = '',
     [switch]$ReplaceExisting
 )
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) { $ProjectRoot = $PSScriptRoot }
 if (-not [IO.Path]::IsPathRooted($ProjectRoot)) { throw 'ProjectRoot debe ser una ruta absoluta.' }
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 if ([string]::IsNullOrWhiteSpace($PythonPath)) { $PythonPath = Join-Path $ProjectRoot '.venv\Scripts\python.exe' }
@@ -25,6 +26,10 @@ $slots = @('0900','1200','1500')
 $scheduleJson = & $PythonPath (Join-Path $ProjectRoot 'schedule.py')
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo leer el calendario de inicio y fin.' }
 $schedule = ($scheduleJson -join "`n") | ConvertFrom-Json
+if ($schedule.mode -eq 'continuous') {
+    & (Join-Path $PSScriptRoot 'create_daily_tasks.ps1') -ProjectRoot $ProjectRoot -ReplaceExisting:$ReplaceExisting -WhatIf:$WhatIfPreference
+    return
+}
 $awakeUntil = if ($schedule.awake.until -is [datetime]) { [DateTimeOffset]$schedule.awake.until } else { [DateTimeOffset]::Parse($schedule.awake.until) }
 $schedule.awake.until = $awakeUntil.ToOffset([TimeSpan]::FromHours(-5)).ToString("yyyy-MM-dd'T'HH:mm:sszzz")
 $awakeName = $schedule.awake.name

@@ -16,12 +16,17 @@ SMS_ENABLED = False
 def value(name, default=''):
     return (VALUES.get(name) or default).strip()
 
-TEST_START_DATE = date.fromisoformat(value('TEST_START_DATE', value('TEST_DATE', '2026-10-09')))
-TEST_END_DATE = date.fromisoformat(value('TEST_END_DATE', TEST_START_DATE.isoformat()))
+TEST_SCHEDULE_MODE = value('TEST_SCHEDULE_MODE', 'period').lower()
+if TEST_SCHEDULE_MODE not in {'period', 'continuous'}:
+    raise ValueError('TEST_SCHEDULE_MODE debe ser period o continuous')
+TEST_START_DATE = None if TEST_SCHEDULE_MODE == 'continuous' else date.fromisoformat(value('TEST_START_DATE', value('TEST_DATE', '2026-10-09')))
+TEST_END_DATE = None if TEST_SCHEDULE_MODE == 'continuous' else date.fromisoformat(value('TEST_END_DATE', TEST_START_DATE.isoformat()))
 # Alias de compatibilidad para vistas previas antiguas; no fija el día de ejecución.
 TEST_DATE = TEST_START_DATE
 
 def test_days():
+    if TEST_SCHEDULE_MODE == 'continuous':
+        raise ValueError('El modo continuo no tiene una lista finita de fechas')
     if TEST_END_DATE < TEST_START_DATE:
         raise ValueError('TEST_END_DATE debe ser igual o posterior a TEST_START_DATE')
     day = TEST_START_DATE
@@ -41,6 +46,7 @@ def now_colombia():
     return datetime.now(COLOMBIA)
 
 DRY_RUN = flag('DRY_RUN', 'true')
+TEST_ENABLED = flag('TEST_ENABLED', 'true')
 TWILIO_ACCOUNT_SID = value('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = value('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = value('TWILIO_PHONE_NUMBER')
@@ -64,10 +70,11 @@ POLL_SECONDS = 5
 OBSERVE_SECONDS = 180
 
 def validate(live=False):
-    if TEST_END_DATE < TEST_START_DATE:
+    if TEST_SCHEDULE_MODE == 'period' and TEST_END_DATE < TEST_START_DATE:
         raise ValueError('TEST_END_DATE debe ser igual o posterior a TEST_START_DATE')
     anchor = date.fromisoformat(BALANCE_ANCHOR_DATE)
-    if anchor.day != 15 or CAPITALIZATION_DAY != 15 or anchor > TEST_START_DATE:
+    first_day = now_colombia().date() if TEST_SCHEDULE_MODE == 'continuous' else TEST_START_DATE
+    if anchor.day != 15 or CAPITALIZATION_DAY != 15 or anchor > first_day:
         raise ValueError('El corte ancla debe ser un día 15 anterior a la prueba')
     if not all(math.isfinite(n) for n in (BALANCE_ANCHOR_PRINCIPAL_COP, MONTHLY_RATE)):
         raise ValueError('Saldo/tasa deben ser finitos')
@@ -100,7 +107,9 @@ def check_window(slot, now=None):
     if slot not in PLAN:
         raise ValueError('Franja desconocida')
     day = now.date()
-    if not TEST_START_DATE <= day <= TEST_END_DATE:
+    if not TEST_ENABLED:
+        raise ValueError('Automatizacion cancelada: TEST_ENABLED=false; no se envia nada')
+    if TEST_SCHEDULE_MODE == 'period' and not TEST_START_DATE <= day <= TEST_END_DATE:
         raise ValueError(f'Fuera del período {TEST_START_DATE} a {TEST_END_DATE} (Colombia); no se envía nada')
     start = datetime.combine(day, datetime.min.time(), COLOMBIA).replace(hour=SLOT_HOURS[slot])
     if not start <= now < start + timedelta(minutes=WINDOW_MINUTES):

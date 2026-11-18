@@ -9,9 +9,12 @@ def main():
     args = parser.parse_args()
     try:
         config.validate(live=args.check_live)
-        days = (config.TEST_END_DATE - config.TEST_START_DATE).days + 1
-        print(f'Período inclusivo: {config.TEST_START_DATE} a {config.TEST_END_DATE}; {days} días, '
-              f'{3 * days} llamadas, {days} WhatsApp, {days} email, 0 SMS.')
+        if config.TEST_SCHEDULE_MODE == 'continuous':
+            print('Continuo sin fechas: cada dia 3 llamadas, 1 WhatsApp, 1 email, 0 SMS; hasta cancelar.')
+        else:
+            days = (config.TEST_END_DATE - config.TEST_START_DATE).days + 1
+            print(f'Período inclusivo: {config.TEST_START_DATE} a {config.TEST_END_DATE}; {days} días, '
+                  f'{3 * days} llamadas, {days} WhatsApp, {days} email, 0 SMS.')
         for slot in config.PLAN:
             preview(slot)
         print('Configuración local válida. Sender/template deben comprobarse en la consola Twilio.')

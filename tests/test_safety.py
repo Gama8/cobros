@@ -21,6 +21,15 @@ from twilio.http.response import Response
 from twilio.base.exceptions import TwilioException
 from balance import calculate_balance
 
+def setUpModule():
+    global _period_config
+    _period_config = patch.multiple(config, TEST_SCHEDULE_MODE='period', TEST_ENABLED=True,
+                                  TEST_START_DATE=date(2026, 10, 9), TEST_END_DATE=date(2026, 10, 9))
+    _period_config.start()
+
+def tearDownModule():
+    _period_config.stop()
+
 class FinanceTests(TestCase):
     def setUp(self):
         date_patch = patch.object(config, 'TEST_DATE', date(2026, 10, 9))

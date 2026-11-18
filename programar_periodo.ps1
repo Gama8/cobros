@@ -1,12 +1,19 @@
-[CmdletBinding()]
-param([string]$ProjectRoot = $PSScriptRoot)
+﻿[CmdletBinding()]
+param([string]$ProjectRoot = '')
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) { $ProjectRoot = $PSScriptRoot }
 $env:PYTHONDONTWRITEBYTECODE = '1'
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
 $python = Join-Path $ProjectRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $python)) { throw 'Primero ejecuta instalar.ps1.' }
 $envFile = Join-Path $ProjectRoot '.env'
 if (-not (Test-Path -LiteralPath $envFile)) { throw 'Falta configurar .env.' }
+$modeJson = & $python -B (Join-Path $ProjectRoot 'schedule.py')
+if ($LASTEXITCODE -ne 0) { throw 'No se pudo leer la configuracion.' }
+if ((($modeJson -join "`n") | ConvertFrom-Json).mode -eq 'continuous') {
+    & (Join-Path $ProjectRoot 'programar_continuo.ps1') -ProjectRoot $ProjectRoot
+    return
+}
 $envHash = (Get-FileHash -LiteralPath $envFile -Algorithm SHA256).Hash
 try { Get-ScheduledTask -TaskPath '\' -ErrorAction Stop | Out-Null }
 catch { throw 'Windows bloqueo el Programador. Ejecuta este script en PowerShell como administrador con la misma cuenta que dejara la sesion iniciada.' }

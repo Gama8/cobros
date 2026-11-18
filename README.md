@@ -8,7 +8,33 @@ Prueba controlada a medios de contacto propios. Conserva el cálculo dinámico d
 | 12:00 | 1 llamada |
 | 15:00 | 1 llamada + 1 email |
 
-Los dos extremos de `TEST_START_DATE` y `TEST_END_DATE` están incluidos, también fines de semana. El código funciona en Python 3.10 o posterior; la programación automática usa Windows Task Scheduler y PowerShell 5.1 o posterior.
+El modo actual es continuo: todos los días, incluidos fines de semana, sin fechas de inicio ni fin y hasta cancelar. El código funciona en Python 3.10 o posterior; la programación automática usa Windows Task Scheduler y PowerShell 5.1 o posterior.
+
+## Programación continua hasta cancelar
+
+El `.env` actual usa:
+
+```dotenv
+TEST_SCHEDULE_MODE=continuous
+TEST_ENABLED=true
+DRY_RUN=false
+TEST_OWN_CONTACTS_CONFIRMED=true
+SMS_ENABLED=false
+```
+
+No necesita `TEST_DATE`, `TEST_START_DATE` ni `TEST_END_DATE`. Cada día calcula el saldo de esa fecha en Colombia. Se registran solamente tres tareas diarias sin vencimiento (`CobranzaV5Temp_Daily_0900`, `_1200` y `_1500`), más un auxiliar de energía al iniciar sesión. Una vez programado, no hace falta volver a configurarlo cada semana.
+
+```powershell
+# Activa y verifica la programación del .env, sin enviar contactos en ese momento:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\programar_periodo.ps1
+
+# Cancela: bloquea los siguientes envíos automáticos y elimina las tareas activas propias:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\cancelar.ps1
+```
+
+La cancelación guarda `TEST_ENABLED=false` y conserva contactos, credenciales, SQLite y logs. No puede retirar contactos ya enviados. Para reanudar, cambia a `TEST_ENABLED=true` y vuelve a ejecutar `programar_periodo.ps1`. Las pruebas manuales explícitas siguen disponibles tras cancelar la automatización.
+
+Para volver a un período limitado, usa `TEST_SCHEDULE_MODE=period`, `TEST_ENABLED=true` y ambas fechas ISO. Las tareas diarias siguen leyendo el `.env`: al terminar ese período no envían. Si quieres trasladar la programación a otro PC, ejecuta `cancelar.ps1` en el anterior antes de activar el nuevo. La deduplicación de SQLite es local a cada equipo.
 
 ## Instalar en otro equipo Windows
 
@@ -26,7 +52,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\instalar.ps1 -EnvKeyFi
 
 Cambia la ruta de la clave por su ubicación real. El instalador crea `.venv`, instala dependencias y restaura `.env` exactamente como estaba. Un `.env` existente se conserva. No programa tareas ni inicia contactos.
 
-**La copia actual conserva las fechas del 26 al 31 de octubre de 2026. Ya vencieron: ajusta `TEST_START_DATE` y `TEST_END_DATE` en el `.env` restaurado antes de ejecutar `programar_periodo.ps1`.** Los contactos, credenciales y demás valores se conservan tal como estaban; restaurarlos no acredita que sigan vigentes en el proveedor.
+**La copia actual está en modo continuo, con `TEST_ENABLED=true` y sin fechas de inicio ni fin. Después de restaurarla, ejecuta `programar_periodo.ps1` para registrar la programación en ese equipo.** Los contactos, credenciales y demás valores se conservan tal como estaban; restaurarlos no acredita que sigan vigentes en el proveedor.
 
 Si ya instalaste el proyecto y quieres reemplazar el `.env` de ejemplo:
 
@@ -68,7 +94,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\instalar.ps1 -BasePyth
 
 | Variables | Uso |
 |---|---|
-| `TEST_START_DATE`, `TEST_END_DATE` | Fechas literales `AAAA-MM-DD`; no admiten `today()` |
+| `TEST_SCHEDULE_MODE`, `TEST_ENABLED` | `continuous` y `true` para ejecutar diariamente hasta cancelar |
+| `TEST_START_DATE`, `TEST_END_DATE` | Sólo para `TEST_SCHEDULE_MODE=period`: fechas `AAAA-MM-DD` |
 | `TEST_PHONE`, `TEST_WHATSAPP`, `TEST_EMAIL` | Tus propios destinos; WhatsApp vacío usa `TEST_PHONE` |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Credenciales Twilio |
 | `TWILIO_PHONE_NUMBER` | Número Voice o Caller ID verificado |
@@ -79,7 +106,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\instalar.ps1 -BasePyth
 
 Mantén `SMS_ENABLED=false`, `WHATSAPP_ENABLED=true` y `TWILIO_TRIAL_MODE=false`. Usa números E.164 (`+57...`) sin prefijo `whatsapp:` en el `.env`.
 
-El ejemplo empieza con `DRY_RUN=true` y `TEST_OWN_CONTACTS_CONFIRMED=false`. Cambia las fechas de ejemplo por el período que quieras probar. Con `DRY_RUN=true` las pruebas sólo muestran mensajes. Para habilitar envíos reales a tus propios medios, configura `DRY_RUN=false` y `TEST_OWN_CONTACTS_CONFIRMED=true`.
+El ejemplo empieza con `DRY_RUN=true` y `TEST_OWN_CONTACTS_CONFIRMED=false`. El ejemplo usa modo continuo; no necesita fechas. Puedes seleccionar el modo `period` si quieres límites. Con `DRY_RUN=true` las pruebas sólo muestran mensajes. Para habilitar envíos reales a tus propios medios, configura `DRY_RUN=false` y `TEST_OWN_CONTACTS_CONFIRMED=true`.
 
 ## Revisar y programar
 
@@ -95,15 +122,15 @@ Desde la carpeta del repositorio:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\programar_periodo.ps1
 ```
 
-`programar_periodo.ps1` valida la configuración, comprueba Twilio/Gmail sin enviar contactos, registra tres tareas por día futuro y comprueba el auxiliar de energía. Sólo muestra `LISTO` al terminar las verificaciones. Si Windows deniega acceso al Programador, ejecútalo desde PowerShell como administrador con la misma cuenta que dejará la sesión iniciada.
+`programar_periodo.ps1` valida la configuración, comprueba Twilio/Gmail sin enviar contactos, registra tres tareas diarias sin vencimiento en modo continuo (o tres por día futuro en modo período) y comprueba el auxiliar de energía. Sólo muestra `LISTO` al terminar las verificaciones. Si Windows deniega acceso al Programador, ejecútalo desde PowerShell como administrador con la misma cuenta que dejará la sesión iniciada.
 
-Las rutas se calculan desde la carpeta clonada. Cada tarea usa el Python de su `.venv`, una fecha exacta y horas de Colombia, convertidas a la zona de Windows. Si cambias las fechas del `.env`, vuelve a ejecutar `programar_periodo.ps1`. Si mueves la carpeta, recrea `.venv` y vuelve a programar.
+Las rutas se calculan desde la carpeta clonada. Cada tarea usa el Python de su `.venv`, horas fijas de Colombia. En modo continuo usa disparadores diarios sincronizados en UTC y sin fecha de fin; en modo período conserva la fecha exacta de cada tarea. Si cambias de modo o modificas las fechas del período, vuelve a ejecutar `programar_periodo.ps1`. Si mueves la carpeta, recrea `.venv` y vuelve a programar.
 
-Deja el PC encendido, con corriente, Internet y tu sesión iniciada; puedes bloquearla y cerrar PowerShell. El auxiliar intenta evitar la suspensión automática hasta las 15:15 del último día; no permite ejecutar contactos con el equipo apagado ni garantiza ejecución tras una suspensión manual. Se reactiva al iniciar sesión dentro del período.
+Deja el PC encendido, con corriente, Internet y tu sesión iniciada; puedes bloquearla y cerrar PowerShell. El auxiliar intenta evitar la suspensión automática mientras la programación continua está activa (o hasta las 15:15 del último día en modo período); no permite ejecutar contactos con el equipo apagado ni garantiza ejecución tras una suspensión manual. Se reactiva al iniciar sesión mientras la automatización está activa.
 
 ### Trasladar la automatización desde el equipo anterior
 
-Programa los envíos en **un solo equipo a la vez**. Antes de activar el nuevo, elimina o deshabilita las tareas temporales del equipo anterior. Cada instalación tiene su propia SQLite: el control de duplicados no se comparte entre computadoras. Un clon nuevo tampoco contiene los intentos ya hechos el mismo día; empieza después de la última franja de ese día o en una fecha futura.
+Programa los envíos en **un solo equipo a la vez**. Antes de activar el nuevo, elimina o deshabilita las tareas temporales del equipo anterior. Cada instalación tiene su propia SQLite: el control de duplicados no se comparte entre computadoras. Un clon nuevo tampoco contiene los intentos ya hechos el mismo día; programa sólo las franjas futuras y cancela la otra instalación antes de activarlo.
 
 Este repositorio no incluye `.env` en texto claro, claves de descifrado, bases de datos ni logs. Incluye la configuración actual únicamente en `.env.enc`, cifrada. Conserva el cálculo y los parámetros financieros de ejemplo del proyecto. Copiar código no traslada las tareas de Windows ni el historial; tampoco modifica la v5 de producción.
 
@@ -125,7 +152,7 @@ En Twilio Console verifica el sender de WhatsApp `ONLINE` y la plantilla aprobad
 Get-Content -LiteralPath .\logs\test.log -Tail 40
 ```
 
-SQLite está en `data/test_results.sqlite3`. Registra fecha, franja, canal, SID, estados y saldo calculado. Reserva cada contacto antes del envío; repetir el arranque no reenvía un contacto reservado, incluso si quedó fallido o incierto. No borres `data` para reintentar. Windows repite el arranque cada minuto durante 9 minutos y 30 segundos; Python limita cada franja a diez minutos y bloquea fechas incorrectas. No recupera franjas vencidas automáticamente.
+SQLite está en `data/test_results.sqlite3`. Registra fecha, franja, canal, SID, estados y saldo calculado. Reserva cada contacto antes del envío; repetir el arranque no reenvía un contacto reservado, incluso si quedó fallido o incierto. No borres `data` para reintentar. Windows repite el arranque cada minuto durante 9 minutos y 30 segundos en cada franja; Python limita cada franja a diez minutos y bloquea fechas incorrectas. No recupera franjas vencidas automáticamente.
 
 - `ringing`: Twilio reportó timbrado; no garantiza que el celular haya sonado físicamente.
 - `no-answer`: no se registró una conexión contestada o se rechazó la llamada.
@@ -148,7 +175,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\remove_tasks.ps1
 # También admite -StartDate AAAA-MM-DD -EndDate AAAA-MM-DD para otro período.
 ```
 
-Eliminar tareas conserva la base de datos y los logs. El repositorio no activa envíos por clonarlo o instalar dependencias. Los scripts de programación y energía están limitados a la copia de prueba.
+En modo continuo, `remove_tasks.ps1` sin fechas equivale a cancelar. Las tareas antiguas ya vencidas pueden conservarse como historial del Programador; no vuelven a ejecutarse. Eliminar tareas conserva la base de datos y los logs. El repositorio no activa envíos por clonarlo o instalar dependencias. Los scripts de programación y energía están limitados a la copia de prueba.
 
 ## Verificaciones sin contactos reales
 
